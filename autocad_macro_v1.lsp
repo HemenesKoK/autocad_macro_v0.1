@@ -80,7 +80,7 @@
 )
 
 ; Set Working Tab
-(defun GetTab (MyTab)
+(defun GetTab
     (progn
         ; Get the first sheet
         (setq MySheet (vl-catch-all-apply 'vlax-get-property (list (vlax-get-property MyBook "Sheets") "Item" 1)))
@@ -158,11 +158,118 @@
       ;; Save the workbook after updating the cell
       (vlax-invoke-method MyBook "Save")
     )
-    nil ; Return nil if Excel is not open
+    (*error* "\nExcel is not open.") ; Error message if Excel is not open
   )
 )
 
 ;--------------
 ;--- SEARCH ---
 ;--------------
+; TODO: set search filter to Current layer
 
+; Parameters: 
+; searchString: The string to search for
+
+; Local Variables:
+; ss:         The selection set of entities to search in
+; count:      The number of entities in the selection set
+; ent:        The current entity being processed
+; entData:    The data of the current entity
+; layerName:  The name of the layer of the current entity
+; layerDef:   The definition of the layer of the current entity
+; textValue:  The text value of the current entity
+
+(defun txtSearch (searchString / ss count ent entData layerName layerDef textValue)
+  (setq ss (ssget "_X" '((0 . "TEXT,MTEXT")))) ; Select all TEXT and MTEXT
+  (if ss
+    (progn
+      (setq count (sslength ss))
+      (while (> count 0)
+        (setq ent (ssname ss (setq count (1- count))))
+        (setq entData (entget ent)) ; Get entity data once
+        (setq layerName (cdr (assoc 8 entData))) ; Get layer name
+
+        ;; Check if the layer is ON
+        (setq layerDef (tblsearch "LAYER" layerName))
+        (if (and layerDef
+                 (or (not (assoc 62 layerDef))         ; No color means it's ON
+                     (> (cdr (assoc 62 layerDef)) 0))   ; Color is positive => layer ON
+            )
+          (progn
+            ;; Now get text value
+            (setq textValue
+              (cond
+                ((= (cdr (assoc 0 entData)) "TEXT")
+                 (cdr (assoc 1 entData)))
+                ((= (cdr (assoc 0 entData)) "MTEXT")
+                 (vlax-get-property (vlax-ename->vla-object ent) 'TextString))
+              )
+            )
+            ;; Exact match
+            (if (and textValue
+                     (equal textValue searchString))
+              (progn
+                (setq count 0) ; Exit loop
+                ent ; Return entity
+              )
+            )
+          )
+        )
+      )
+    )
+    nil
+  )
+)
+
+;-------------
+;--- COORD ---
+;-------------
+
+(defun GetTextCoordinates (textObj)
+  (if textObj
+    (progn
+      (setq coords (cdr (assoc 10 (entget textObj)))) ; Get the insertion point (coordinates)
+      (if coords
+        (progn
+          ;; Return the coordinates as a list
+          (list (car coords) (cadr coords))
+        )
+        nil ; Handle missing coordinates
+      )
+    )
+    nil ; Return nil if no text object is provided
+  )
+)
+
+;------------
+;--- MISC ---
+;------------
+
+(defun CreateCircle (x y radius)
+  (princ (strcat "\nCreating circle at: " (rtos x 2 2) ", " (rtos y 2 2))) ; Print the coordinates
+  (command "_CIRCLE" (list x y) radius) ; Create a circle at the specified coordinates with the given radius
+)
+
+(defun GetFileInput (prompt)
+  (setq fileName (getfiled prompt "" "Excel Files (*.xls;*.xlsx)|*.xls;*.xlsx" 1))
+  (if fileName
+    (progn
+      (setq MyFile fileName)
+      (princ (strcat "\nSelected file: " MyFile))
+    )
+    (princ "\nNo file selected.")
+  )
+)
+
+;------------
+;--- MAIN ---
+;------------
+
+(defun c:MacroKolecka
+  (GetFileInput "Select Excel file")
+  (OpenExcel MyFile)
+  (GetTab)
+
+  
+
+)
