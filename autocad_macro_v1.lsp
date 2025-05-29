@@ -80,7 +80,7 @@
 )
 
 ; Set Working Tab
-(defun GetTab
+(defun GetTab ()
     (progn
         ; Get the first sheet
         (setq MySheet (vl-catch-all-apply 'vlax-get-property (list (vlax-get-property MyBook "Sheets") "Item" 1)))
@@ -189,14 +189,14 @@
         (setq entData (entget ent)) ; Get entity data once
         (setq layerName (cdr (assoc 8 entData))) ; Get layer name
 
-        ;; Check if the layer is ON
+        ; Check if the layer is ON
         (setq layerDef (tblsearch "LAYER" layerName))
         (if (and layerDef
                  (or (not (assoc 62 layerDef))         ; No color means it's ON
                      (> (cdr (assoc 62 layerDef)) 0))   ; Color is positive => layer ON
             )
           (progn
-            ;; Now get text value
+            ; get text value of ent
             (setq textValue
               (cond
                 ((= (cdr (assoc 0 entData)) "TEXT")
@@ -206,16 +206,16 @@
               )
             )
             ;; Exact match
-            (if (and textValue
-                     (equal textValue searchString))
+            (if (and textValue (equal textValue searchString))
               (progn
                 (setq count 0) ; Exit loop
-                ent ; Return entity
+                (setq foundEnt ent) ; Store the found entity
               )
             )
           )
         )
       )
+      foundEnt
     )
     (*error* "\nNo text objects found in the drawing.")
   )
@@ -251,7 +251,7 @@
 )
 
 (defun GetFileInput (prompt)
-  (setq fileName (getfiled prompt "" "Excel Files (*.xls;*.xlsx)|*.xls;*.xlsx" 1))
+  (setq fileName (getfiled prompt "" "xlsx" 0))
   (if fileName
     (progn
       (setq MyFile fileName)
@@ -265,7 +265,7 @@
 ;--- MAIN ---
 ;------------
 
-(defun c:MacroKolecka
+(defun c:MacroKolecka ()
   (GetFileInput "Select Excel file")
   (OpenExcel MyFile)
   (GetTab)
