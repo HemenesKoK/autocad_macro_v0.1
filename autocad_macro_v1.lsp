@@ -245,13 +245,41 @@
 ;--- MISC ---
 ;------------
 
+;(defun CreateCircle (x y radius)
+;  (command "_CIRCLE" (list x y) radius)
+;)
+
 (defun CreateCircle (x y radius)
-  (command "_CIRCLE" (list x y) radius)
+  (entmake
+    (list
+      (cons 0 "CIRCLE")                     ; Entity type
+      (cons 10 (list x y 0.0))              ; Center point (must be 3D)
+      (cons 40 radius)                      ; Radius
+      (cons 62 256)                         ; Color (256 = BYLAYER, optional)
+    )
+  )
 )
 
-(defun InsertBlock (blockName x y)
-  (command "_-INSERT" blockName (list x y) "1" "1" "0")
+
+;(defun InsertBlock (blockName x y)
+;  (command "_-INSERT" blockName (list x y) "1" "1" "0")
+;)
+
+(defun InsertBlock (name x y)
+  (entmake
+    (list
+      (cons 0 "INSERT")                     ; Entity type
+      (cons 2 name)                         ; Block name
+      (cons 10 (list x y 0.0))              ; Insertion point (3D)
+      (cons 41 1)                           ; X scale
+      (cons 42 1)                           ; Y scale
+      (cons 43 1)                           ; Z scale
+      (cons 50 0)                           ; Rotation (in radians)
+      (cons 66 0)                           ; Has attributes? 0 = no
+    )
+  )
 )
+
 
 (defun GetFileInput (prompt)
   (setq fileName (getfiled prompt "" "xlsx" 0))
