@@ -128,7 +128,7 @@
 
 ;--- layer NEW by name
 (defun slaynew (layername)
-  (command "_-layer" "N" layername "" "C")
+  (command "_-layer" "N" layername "")
 )
 
 ;--- layer OFF by name
@@ -279,10 +279,16 @@
       (setq textObj (txtSearch cellValueNumber))
       (setq coords (GetTextCoordinates textObj))
       
-      (if (not tblsearch "LAYER" cellValueLayer)
-        (slaynew cellValueLayer)
-      )
+      (princ (strcat "\nProcessing layer: " cellValueLayer))
       
+      (if (not (and 
+            textObj
+            (tblsearch "LAYER" cellValueLayer)))
+        (progn
+          (princ (strcat "\nLayer does not exist. Creating layer: " cellValueLayer))
+          (slaynew cellValueLayer) ; Create the layer with color 7 (default white)
+        )
+      )
       (slayon cellValueLayer)
       (slaycurr cellValueLayer)
       
