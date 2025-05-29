@@ -246,8 +246,11 @@
 ;------------
 
 (defun CreateCircle (x y radius)
-  (princ (strcat "\nCreating circle at: " (rtos x 2 2) ", " (rtos y 2 2))) ; Print the coordinates
-  (command "_CIRCLE" (list x y) radius) ; Create a circle at the specified coordinates with the given radius
+  (command "_CIRCLE" (list x y) radius)
+)
+
+(defun InsertBlock (blockName x y)
+  (command "_-INSERT" blockName (list x y) "1" "1" "0")
 )
 
 (defun GetFileInput (prompt)
@@ -258,6 +261,14 @@
       (princ (strcat "\nSelected file: " MyFile))
     )
     (*error* "\nNo file selected.")
+  )
+)
+
+(defun GetUserInput (prompt)
+  (setq userInput (getstring (strcat "\n" prompt ": ")))
+  (if (not (equal userInput ""))
+    userInput
+    (*error* "\nNo input provided.")
   )
 )
 
@@ -279,8 +290,6 @@
       (setq textObj (txtSearch cellValueNumber))
       (setq coords (GetTextCoordinates textObj))
       
-      (princ (strcat "\nProcessing layer: " cellValueLayer))
-      
       (if (not (and 
             textObj
             (tblsearch "LAYER" cellValueLayer)))
@@ -296,6 +305,8 @@
       (SetCellValue (strcat "E" (itoa i)) (cadr coords))
       
       (CreateCircle (car coords) (cadr coords) 7)
+      (princ (strcat "\nCircle created at: " (rtos (car coords) 2 2) ", " (rtos (cadr coords) 2 2)))
+      
       (slayoff cellValueLayer)
       (setq i (1+ i))
       (setq cellValueLayer (GetCell (strcat "A" (itoa i))))
@@ -303,3 +314,38 @@
   )
   (CloseExcel)
 )
+
+(defun c:MacroBloky ()
+  (GetFileInput "Select Excel file")
+  (OpenExcel MyFile)
+  (GetTab)
+  (GetUserInput "Enter block name")
+  
+  ;loop
+  (setq i 1)
+  (setq cellValueLayer (GetCell (strcat "A" (itoa i))))
+  (while cellValueLayer
+    (progn
+      (setq cellValueCoorX (GetCell (strcat "D" (itoa i))))
+      (setq cellValueCoorY (GetCell (strcat "E" (itoa i))))
+      
+      (if (not (tblsearch "LAYER" cellValueLayer))
+        (progn
+          (princ (strcat "\nLayer does not exist. Creating layer: " cellValueLayer))
+          (slaynew cellValueLayer) ;
+        )
+      )
+      (slayon cellValueLayer)
+      (slaycurr cellValueLayer)
+      
+      (InsertBlock userInput (atof cellValueCoorX) (atof cellValueCoorY))
+      
+      (slayoff cellValueLayer)
+      (setq i (1+ i))
+      (setq cellValueLayer (GetCell (strcat "A" (itoa i))))
+      (setq cellValueCoorX nil)
+      (setq cellValueCoorY nil)
+    )
+  )
+  (CloseExcel)
+  )
