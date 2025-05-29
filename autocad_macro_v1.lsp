@@ -217,7 +217,7 @@
         )
       )
     )
-    nil
+    (*error* "\nNo text objects found in the drawing.")
   )
 )
 
@@ -237,7 +237,7 @@
         nil ; Handle missing coordinates
       )
     )
-    nil ; Return nil if no text object is provided
+    (*error* "\nText object not found.")
   )
 )
 
@@ -257,7 +257,7 @@
       (setq MyFile fileName)
       (princ (strcat "\nSelected file: " MyFile))
     )
-    (princ "\nNo file selected.")
+    (*error* "\nNo file selected.")
   )
 )
 
@@ -270,6 +270,30 @@
   (OpenExcel MyFile)
   (GetTab)
 
-  
-
+  ;loop
+  (setq i 1)
+  (setq cellValueLayer (GetCell (strcat "A" (itoa i))))
+  (while cellValueLayer
+    (progn
+      (setq cellValueNumber (GetCell (strcat "C" (itoa i))))
+      (setq textObj (txtSearch cellValueNumber))
+      (setq coords (GetTextCoordinates textObj))
+      
+      (if (not tblsearch "LAYER" cellValueLayer)
+        (slaynew cellValueLayer)
+      )
+      
+      (slayon cellValueLayer)
+      (slaycurr cellValueLayer)
+      
+      (SetCellValue (strcat "D" (itoa i)) (car coords))
+      (SetCellValue (strcat "E" (itoa i)) (cadr coords))
+      
+      (CreateCircle (car coords) (cadr coords) 7)
+      (slayoff cellValueLayer)
+      (setq i (1+ i))
+      (setq cellValueLayer (GetCell (strcat "A" (itoa i))))
+    )
+  )
+  (CloseExcel)
 )
