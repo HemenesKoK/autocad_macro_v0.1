@@ -245,10 +245,41 @@
 ;--- MISC ---
 ;------------
 
+;(defun CreateCircle (x y radius)
+;  (command "_CIRCLE" (list x y) radius)
+;)
+
 (defun CreateCircle (x y radius)
-  (princ (strcat "\nCreating circle at: " (rtos x 2 2) ", " (rtos y 2 2))) ; Print the coordinates
-  (command "_CIRCLE" (list x y) radius) ; Create a circle at the specified coordinates with the given radius
+  (entmake
+    (list
+      (cons 0 "CIRCLE")                     ; Entity type
+      (cons 10 (list x y 0.0))              ; Center point (must be 3D)
+      (cons 40 radius)                      ; Radius
+      (cons 62 256)                         ; Color (256 = BYLAYER, optional)
+    )
+  )
 )
+
+
+;(defun InsertBlock (blockName x y)
+;  (command "_-INSERT" blockName (list x y) "1" "1" "0")
+;)
+
+(defun InsertBlock (name x y)
+  (entmake
+    (list
+      (cons 0 "INSERT")                     ; Entity type
+      (cons 2 name)                         ; Block name
+      (cons 10 (list x y 0.0))              ; Insertion point (3D)
+      (cons 41 1)                           ; X scale
+      (cons 42 1)                           ; Y scale
+      (cons 43 1)                           ; Z scale
+      (cons 50 0)                           ; Rotation (in radians)
+      (cons 66 0)                           ; Has attributes? 0 = no
+    )
+  )
+)
+
 
 (defun GetFileInput (prompt)
   (setq fileName (getfiled prompt "" "xlsx" 0))
@@ -258,6 +289,14 @@
       (princ (strcat "\nSelected file: " MyFile))
     )
     (*error* "\nNo file selected.")
+  )
+)
+
+(defun GetUserInput (prompt)
+  (setq userInput (getstring (strcat "\n" prompt ": ")))
+  (if (not (equal userInput ""))
+    userInput
+    (*error* "\nNo input provided.")
   )
 )
 
@@ -279,8 +318,6 @@
       (setq textObj (txtSearch cellValueNumber))
       (setq coords (GetTextCoordinates textObj))
       
-      (princ (strcat "\nProcessing layer: " cellValueLayer))
-      
       (if (not (and 
             textObj
             (tblsearch "LAYER" cellValueLayer)))
@@ -296,6 +333,8 @@
       (SetCellValue (strcat "E" (itoa i)) (cadr coords))
       
       (CreateCircle (car coords) (cadr coords) 7)
+      (princ (strcat "\nCircle created at: " (rtos (car coords) 2 2) ", " (rtos (cadr coords) 2 2)))
+      
       (slayoff cellValueLayer)
       (setq i (1+ i))
       (setq cellValueLayer (GetCell (strcat "A" (itoa i))))
@@ -303,3 +342,38 @@
   )
   (CloseExcel)
 )
+
+(defun c:MacroBloky ()
+  (GetFileInput "Select Excel file")
+  (OpenExcel MyFile)
+  (GetTab)
+  (GetUserInput "Enter block name")
+  
+  ;loop
+  (setq i 1)
+  (setq cellValueLayer (GetCell (strcat "A" (itoa i))))
+  (while cellValueLayer
+    (progn
+      (setq cellValueCoorX (GetCell (strcat "D" (itoa i))))
+      (setq cellValueCoorY (GetCell (strcat "E" (itoa i))))
+      
+      (if (not (tblsearch "LAYER" cellValueLayer))
+        (progn
+          (princ (strcat "\nLayer does not exist. Creating layer: " cellValueLayer))
+          (slaynew cellValueLayer) ;
+        )
+      )
+      (slayon cellValueLayer)
+      (slaycurr cellValueLayer)
+      
+      (InsertBlock userInput (atof cellValueCoorX) (atof cellValueCoorY))
+      
+      (slayoff cellValueLayer)
+      (setq i (1+ i))
+      (setq cellValueLayer (GetCell (strcat "A" (itoa i))))
+      (setq cellValueCoorX nil)
+      (setq cellValueCoorY nil)
+    )
+  )
+  (CloseExcel)
+  )
