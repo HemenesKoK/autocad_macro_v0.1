@@ -142,6 +142,13 @@
   )
 )
 
+(defun GetLayerOfObject (obj)
+  (if (and obj (tblsearch "LAYER" (cdr (assoc 8 (entget obj)))))
+    (cdr (assoc 8 (entget obj))) ; Return the layer name
+    (*error* "\nObject not found or does not have a layer.")
+  )
+)
+
 ;-------------
 ;--- EXCEL ---
 ;-------------
@@ -220,6 +227,31 @@
   )
 )
 
+;(defun FindBlocks ( BlockNameReq LayerNameReq / ss count ent entData layerName layerDef textValue)
+;  (setq ss (ssget "_X" '((0 . "INSERT"))))
+;  (if ss
+;    (progn
+;      (setq count (sslength ss))
+;      (while (> count 0)
+;        (setq ent (ssname ss (setq count (1- count))))
+;        (setq entData (entget ent))
+;        (setq layerName (cdr (assoc 8 entData)))
+;        (if (and layerName (tblsearch "LAYER" layerName) (not (equal layerName LayerNameReq)))
+;          (setq blockName (cdr (assoc 2 entData)))
+;          (if (and blockName (equal blockName BlockNameReq))
+;            (progn
+;              (setq entList (cons ent entList))
+;            )
+;          )
+;        )
+;                 
+;      )
+;      entList
+;    )
+;    (*error* "\nNo blocks found in the drawing.")
+;  )
+;)
+
 ;-------------
 ;--- COORD ---
 ;-------------
@@ -270,7 +302,6 @@
   )
 )
 
-
 (defun GetFileInput (prompt)
   (setq fileName (getfiled prompt "" "xlsx" 0))
   (if fileName
@@ -289,6 +320,50 @@
     (*error* "\nNo input provided.")
   )
 )
+
+(defun FindBlockBBox (block / bbox)
+  (setq entData (entget block))
+  (setq entBBox (vlax-get-property (vlax-ename->vla-object block) 'BoundingBox))
+  (if entBBox
+    (progn
+      (setq minPt (vlax-safearray->list (vlax-variant-value (car entBBox))))
+      (setq maxPt (vlax-safearray->list (vlax-variant-value (cadr entBBox))))
+      ; Create a bounding box list: (minX minY minZ maxX maxY maxZ)
+      (setq bbox (list (car minPt) (cadr minPt) 0.0 ; Min point
+                       (car maxPt) (cadr maxPt) 0.0)) ; Max point
+    )
+    (*error* "\nBounding box not found for the block.")
+  )
+  bbox
+)
+
+;------------
+;--- PLOT ---
+;------------
+
+(defun PlotBlock (blockName layerName / blockObj bbox)
+  (setq blockObj (tblsearch "BLOCK" blockName))
+  (foreach block blockObj
+    (if block
+      (progn
+        (setq bbox (FindBlockBBox block))
+        (if bbox
+          (progn
+            ; Plot the block using the bounding box coordinates
+            (command "_-plot" "Y" "N" "N" "N" "N" "N" "N" "N" "N" "N"
+                     (car bbox) (cadr bbox) (caddr bbox) (cadddr bbox)
+                     layerName)
+            (princ (strcat "\nBlock plotted on layer: " layerName))
+          )
+          (*error* "\nBounding box not found for the block.")
+        )
+      )
+      (*error* "\nBlock not found.")
+    )
+  )
+)
+
+
 
 ;------------
 ;--- MAIN ---
@@ -368,3 +443,28 @@
   )
   (CloseExcel)
   )
+
+(defun c:MacroPlot (/ blockList bboxesList)
+  (GetFileInput "Select Excel file")
+  (OpenExcel MyFile)
+  (GetTab)
+  (GetUserInput "Enter block name")
+  
+  ;loop
+  (setq i 1)
+  (setq cellValueLayer (GetCell (strcat "A" (itoa i))))
+  (while cellValueLayer
+    (progn
+      (slayon cellValueLayer)
+      (slaycurr cellValueLayer)
+      (PlotBlock userInput cellValueLayer)
+      (slayoff cellValueLayer)
+      (setq i (1+ i))
+      (setq cellValueLayer (GetCell (strcat "A" (itoa i))))
+    )
+  )
+  
+)
+; loop through the layers
+; find blocks
+; plot blocks
