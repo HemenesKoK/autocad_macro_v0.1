@@ -370,6 +370,10 @@
 ;--- MAIN ---
 ;------------
 
+; TODO:
+; - Clear coords in excel file before running
+; - Verify search function on non visible layers (in autocad)
+
 (defun c:MacroKolecka ()
   (GetFileInput "Select Excel file")
   (OpenExcel MyFile)
