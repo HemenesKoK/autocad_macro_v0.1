@@ -179,39 +179,38 @@
 ; layerDef:   The definition of the layer of the current entity
 ; textValue:  The text value of the current entity
 
-(defun txtSearch (searchString / ss count ent entData layerName layerDef textValue)
-  (setq ss (ssget "_X" '((0 . "TEXT,MTEXT")))) ; Select all TEXT and MTEXT
+(defun txtSearch (searchString inputLayerName / ss count ent entData textValue foundEnt)
+  (setq filterList
+    (list
+      '(-4 . "<OR")
+        '(0 . "TEXT")
+        '(0 . "MTEXT")
+      '(-4 . "OR>")
+      (cons 8 inputLayerName) ; (8 . "LayerName")
+    )
+  )
+  (setq ss (ssget "X" filterList))
   (if ss
     (progn
       (setq count (sslength ss))
       (while (> count 0)
         (setq ent (ssname ss (setq count (1- count))))
         (setq entData (entget ent)) ; Get entity data once
-        (setq layerName (cdr (assoc 8 entData))) ; Get layer name
 
-        ; Check if the layer is ON
-        (setq layerDef (tblsearch "LAYER" layerName))
-        (if (and layerDef
-                 (or (not (assoc 62 layerDef))         ; No color means it's ON
-                     (> (cdr (assoc 62 layerDef)) 0))   ; Color is positive => layer ON
-            )
+        ; get text value of ent
+        (setq textValue
+          (cond
+            ((= (cdr (assoc 0 entData)) "TEXT")
+             (cdr (assoc 1 entData)))
+            ((= (cdr (assoc 0 entData)) "MTEXT")
+             (vlax-get-property (vlax-ename->vla-object ent) 'TextString))
+          )
+        )
+        ;; Exact match
+        (if (and textValue (equal textValue searchString))
           (progn
-            ; get text value of ent
-            (setq textValue
-              (cond
-                ((= (cdr (assoc 0 entData)) "TEXT")
-                 (cdr (assoc 1 entData)))
-                ((= (cdr (assoc 0 entData)) "MTEXT")
-                 (vlax-get-property (vlax-ename->vla-object ent) 'TextString))
-              )
-            )
-            ;; Exact match
-            (if (and textValue (equal textValue searchString))
-              (progn
-                (setq count 0) ; Exit loop
-                (setq foundEnt ent) ; Store the found entity
-              )
-            )
+            (setq count 0) ; Exit loop
+            (setq foundEnt ent) ; Store the found entity
           )
         )
       )
@@ -245,10 +244,6 @@
 ;--- MISC ---
 ;------------
 
-;(defun CreateCircle (x y radius)
-;  (command "_CIRCLE" (list x y) radius)
-;)
-
 (defun CreateCircle (x y radius)
   (entmake
     (list
@@ -259,11 +254,6 @@
     )
   )
 )
-
-
-;(defun InsertBlock (blockName x y)
-;  (command "_-INSERT" blockName (list x y) "1" "1" "0")
-;)
 
 (defun InsertBlock (name x y)
   (entmake
@@ -308,6 +298,7 @@
   (GetFileInput "Select Excel file")
   (OpenExcel MyFile)
   (GetTab)
+  (GetUserInput "Enter layer name containing propery numbers")
 
   ;loop
   (setq i 1)
@@ -315,7 +306,7 @@
   (while cellValueLayer
     (progn
       (setq cellValueNumber (GetCell (strcat "C" (itoa i))))
-      (setq textObj (txtSearch cellValueNumber))
+      (setq textObj (txtSearch cellValueNumber userInput))
       (setq coords (GetTextCoordinates textObj))
       
       (if (not (and 
@@ -323,7 +314,7 @@
             (tblsearch "LAYER" cellValueLayer)))
         (progn
           (princ (strcat "\nLayer does not exist. Creating layer: " cellValueLayer))
-          (slaynew cellValueLayer) ; Create the layer with color 7 (default white)
+          (slaynew cellValueLayer)
         )
       )
       (slayon cellValueLayer)
