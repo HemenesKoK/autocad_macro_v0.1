@@ -446,7 +446,7 @@
     )
   )
   (CloseExcel)
-  )
+)
 
 (defun c:MacroPlot (/ blockList bboxesList)
   (GetFileInput "Select Excel file")
