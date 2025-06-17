@@ -227,31 +227,6 @@
   )
 )
 
-;(defun FindBlocks ( BlockNameReq LayerNameReq / ss count ent entData layerName layerDef textValue)
-;  (setq ss (ssget "_X" '((0 . "INSERT"))))
-;  (if ss
-;    (progn
-;      (setq count (sslength ss))
-;      (while (> count 0)
-;        (setq ent (ssname ss (setq count (1- count))))
-;        (setq entData (entget ent))
-;        (setq layerName (cdr (assoc 8 entData)))
-;        (if (and layerName (tblsearch "LAYER" layerName) (not (equal layerName LayerNameReq)))
-;          (setq blockName (cdr (assoc 2 entData)))
-;          (if (and blockName (equal blockName BlockNameReq))
-;            (progn
-;              (setq entList (cons ent entList))
-;            )
-;          )
-;        )
-;                 
-;      )
-;      entList
-;    )
-;    (*error* "\nNo blocks found in the drawing.")
-;  )
-;)
-
 ;-------------
 ;--- COORD ---
 ;-------------
@@ -313,6 +288,17 @@
   )
 )
 
+(defun PlotSet (bbox filename num)
+  (setq pt1 (list (car bbox) (cadr bbox))) ; Lower left corner
+  (setq pt2 (list (caddr bbox) (cadddr bbox))) ; Upper right corner
+  (setq savename (strcat filename "-" (itoa num) ".pdf")) ; Save name for the plot file
+  
+; "detailed" | "model" | "printer"        | "paper size"                             | "units" | "orient" | "upside down" | "plot area" | "lower left"            | "upper right"               | "scale" | "offset" | "styles" | "lineweight" | "shade" | "save prompt" | "page" | "proceed"
+; "Y"        | ""      | "DWG To PDF.pc3" | "ISO full bleed A4 (210.00 x 297.00 MM)" | "M"     | "P"      | "N"           | "W"         | "(car bbox)(cadr bbox)" | "(caddr bbox)(cadddr bbox)" | "F"     | "C"      | "?" "."  | "Y"          | "A"     | "filename"    | "N"    | "Y"
+  (command "_-plot" "Y" "" "DWG To PDF.pc3" "ISO full bleed A4 (210.00 x 297.00 MM)" "M" "P" "N" "W" pt1 pt2 "F" "C" "N" "." "Y" "A" savename "N" "Y")
+  (princ "\nPlotted.")
+)
+
 (defun GetUserInput (prompt)
   (setq userInput (getstring (strcat "\n" prompt ": ")))
   (if (not (equal userInput ""))
@@ -321,18 +307,19 @@
   )
 )
 
-(defun FindBlockBBox (block / bbox)
-  (setq entData (entget block))
-  (setq entBBox (vlax-get-property (vlax-ename->vla-object block) 'BoundingBox))
-  (if entBBox
+(defun FindBlockBBox (block / vlaObj minPt maxPt bbox)
+  (setq vlaObj (vlax-ename->vla-object block))
+  (vla-getboundingbox vlaObj 'minPt 'maxPt)
+  (if (and minPt maxPt)
     (progn
-      (setq minPt (vlax-safearray->list (vlax-variant-value (car entBBox))))
-      (setq maxPt (vlax-safearray->list (vlax-variant-value (cadr entBBox))))
-      ; Create a bounding box list: (minX minY minZ maxX maxY maxZ)
-      (setq bbox (list (car minPt) (cadr minPt) 0.0 ; Min point
-                       (car maxPt) (cadr maxPt) 0.0)) ; Max point
+      (setq minPt (vlax-safearray->list minPt))
+      (setq maxPt (vlax-safearray->list maxPt))
+      (setq bbox (list (car minPt) (cadr minPt) (car maxPt) (cadr maxPt)))
     )
-    (*error* "\nBounding box not found for the block.")
+    (progn
+      (princ "\nBounding box not found for the block.")
+      nil
+    )
   )
   bbox
 )
@@ -341,29 +328,27 @@
 ;--- PLOT ---
 ;------------
 
-(defun PlotBlock (blockName layerName / blockObj bbox)
-  (setq blockObj (tblsearch "BLOCK" blockName))
-  (foreach block blockObj
-    (if block
-      (progn
-        (setq bbox (FindBlockBBox block))
+(defun PlotBlock (blockName layerName / ss count ent entData bbox)
+  (setq ss (ssget "X" (list (cons 0 "INSERT") (cons 2 blockName) (cons 8 layerName))))
+  (if ss
+    (progn
+      (setq count (sslength ss))
+      (while (> count 0)
+        ; print count 
+        (princ (strcat "\nProcessing block " blockName " on layer " layerName " (" (itoa count) ")..."))
+        (setq ent (ssname ss (setq count (1- count))))
+        (setq bbox (FindBlockBBox ent))
         (if bbox
           (progn
-            ; Plot the block using the bounding box coordinates
-            (command "_-plot" "Y" "N" "N" "N" "N" "N" "N" "N" "N" "N"
-                     (car bbox) (cadr bbox) (caddr bbox) (cadddr bbox)
-                     layerName)
-            (princ (strcat "\nBlock plotted on layer: " layerName))
+            (PlotSet bbox layerName count)
           )
-          (*error* "\nBounding box not found for the block.")
+          (princ "\nBounding box not found for block.")
         )
       )
-      (*error* "\nBlock not found.")
     )
+    (princ (strcat "\nNo blocks named " blockName " found on layer " layerName))
   )
 )
-
-
 
 ;------------
 ;--- MAIN ---
@@ -453,6 +438,7 @@
   (OpenExcel MyFile)
   (GetTab)
   (GetUserInput "Enter block name")
+  (setvar "CMDECHO" 0)
   
   ;loop
   (setq i 1)
@@ -467,6 +453,8 @@
       (setq cellValueLayer (GetCell (strcat "A" (itoa i))))
     )
   )
+  
+  (setvar "CMDECHO" 1)
   
 )
 ; loop through the layers
