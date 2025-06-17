@@ -105,7 +105,7 @@
         )
 
         ; debug
-        (princ (strcat "\nValue of cell " ExCell ": " (vl-princ-to-string MyCell)))
+        (princ (strcat "\nRead cell: " ExCell " - Value: " (vl-princ-to-string MyCell)))
   )
   MyCell ; Return the cell value
 )
@@ -161,7 +161,7 @@
       (setq formattedValue (if (numberp value) (rtos value 2 0) value)) ; Use rtos for numbers, keep strings as is
       (setq MyRange (vlax-get-property (vlax-get-property MySheet 'Cells) "Range" cellAddress)) ; Get the cell range
       (vlax-put-property MyRange 'Value2 formattedValue) ; Set the cell value
-      (princ (strcat "\nSet value of cell " cellAddress " to: " (vl-princ-to-string formattedValue))) ; Print confirmation
+      (princ (strcat "\nSet cell " cellAddress " - Value: " (vl-princ-to-string formattedValue))) ; Print confirmation
       ;; Save the workbook after updating the cell
       (vlax-invoke-method MyBook "Save")
     )
@@ -293,10 +293,10 @@
   (setq pt2 (list (caddr bbox) (cadddr bbox))) ; Upper right corner
   (setq savename (strcat filename "-" (itoa num) ".pdf")) ; Save name for the plot file
   
-; "detailed" | "model" | "printer"        | "paper size"                             | "units" | "orient" | "upside down" | "plot area" | "lower left"            | "upper right"               | "scale" | "offset" | "styles" | "lineweight" | "shade" | "save prompt" | "page" | "proceed"
-; "Y"        | ""      | "DWG To PDF.pc3" | "ISO full bleed A4 (210.00 x 297.00 MM)" | "M"     | "P"      | "N"           | "W"         | "(car bbox)(cadr bbox)" | "(caddr bbox)(cadddr bbox)" | "F"     | "C"      | "?" "."  | "Y"          | "A"     | "filename"    | "N"    | "Y"
+  ; "detailed" | "model" | "printer"        | "paper size"                             | "units" | "orient" | "upside down" | "plot area" | "lower left"            | "upper right"               | "scale" | "offset" | "styles" | "lineweight" | "shade" | "save prompt" | "page" | "proceed"
+  ; "Y"        | ""      | "DWG To PDF.pc3" | "ISO full bleed A4 (210.00 x 297.00 MM)" | "M"     | "P"      | "N"           | "W"         | "(car bbox)(cadr bbox)" | "(caddr bbox)(cadddr bbox)" | "F"     | "C"      | "?" "."  | "Y"          | "A"     | "filename"    | "N"    | "Y"
   (command "_-plot" "Y" "" "DWG To PDF.pc3" "ISO full bleed A4 (210.00 x 297.00 MM)" "M" "P" "N" "W" pt1 pt2 "F" "C" "N" "." "Y" "A" savename "N" "Y")
-  (princ "\nPlotted.")
+  (princ (strcat "\nPlot saved as: " savename))
 )
 
 (defun GetUserInput (prompt)
@@ -335,7 +335,7 @@
       (setq count (sslength ss))
       (while (> count 0)
         ; print count 
-        (princ (strcat "\nProcessing block " blockName " on layer " layerName " (" (itoa count) ")..."))
+        (princ (strcat "\nProcessing block " blockName " on layer " layerName " (" (itoa count) ")\n"))
         (setq ent (ssname ss (setq count (1- count))))
         (setq bbox (FindBlockBBox ent))
         (if bbox
@@ -359,6 +359,7 @@
 ; - Verify search function on non visible layers (in autocad)
 
 (defun c:MacroKolecka ()
+  (setvar "CMDECHO" 0)
   (GetFileInput "Select Excel file")
   (OpenExcel MyFile)
   (GetTab)
@@ -377,7 +378,7 @@
             textObj
             (tblsearch "LAYER" cellValueLayer)))
         (progn
-          (princ (strcat "\nLayer does not exist. Creating layer: " cellValueLayer))
+          (princ (strcat "\nCreating layer: " cellValueLayer))
           (slaynew cellValueLayer)
         )
       )
@@ -395,14 +396,17 @@
       (setq cellValueLayer (GetCell (strcat "A" (itoa i))))
     )
   )
+  (setvar "CMDECHO" 1)
   (CloseExcel)
 )
 
 (defun c:MacroBloky ()
+  (setvar "CMDECHO" 0)
   (GetFileInput "Select Excel file")
   (OpenExcel MyFile)
   (GetTab)
   (GetUserInput "Enter block name")
+  
   
   ;loop
   (setq i 1)
@@ -414,7 +418,7 @@
       
       (if (not (tblsearch "LAYER" cellValueLayer))
         (progn
-          (princ (strcat "\nLayer does not exist. Creating layer: " cellValueLayer))
+          (princ (strcat "\nCreating layer: " cellValueLayer))
           (slaynew cellValueLayer) ;
         )
       )
@@ -430,15 +434,16 @@
       (setq cellValueCoorY nil)
     )
   )
+  (setvar "CMDECHO" 1)
   (CloseExcel)
 )
 
 (defun c:MacroPlot (/ blockList bboxesList)
+  (setvar "CMDECHO" 0)
   (GetFileInput "Select Excel file")
   (OpenExcel MyFile)
   (GetTab)
   (GetUserInput "Enter block name")
-  (setvar "CMDECHO" 0)
   
   ;loop
   (setq i 1)
