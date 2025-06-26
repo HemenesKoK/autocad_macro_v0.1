@@ -324,6 +324,22 @@
   bbox
 )
 
+(defun CheckDupelicateLayerExcel (layerName i)
+  (setq DuplicateBool 0)
+  (if (and (> i 1) (not (equal layerName "")))
+    (progn
+      (setq previousLayer (GetCell (strcat "A" (itoa (1- i)))))
+      (if (equal previousLayer layerName)
+        (progn
+          (setq DuplicateBool 1)
+          (princ (strcat "\nDuplicate layer found: " layerName " at row " (itoa i) ". Skipping."))
+        )
+      )
+      DuplicateBool
+    )
+  )
+)
+
 ;------------
 ;--- PLOT ---
 ;------------
@@ -450,17 +466,29 @@
   (setq cellValueLayer (GetCell (strcat "A" (itoa i))))
   (while cellValueLayer
     (progn
-      (slayon cellValueLayer)
-      (slaycurr cellValueLayer)
-      (PlotBlock userInput cellValueLayer)
-      (slayoff cellValueLayer)
-      (setq i (1+ i))
-      (setq cellValueLayer (GetCell (strcat "A" (itoa i))))
+      (setq Dupe (CheckDupelicateLayerExcel cellValueLayer i))
+      (cond
+        ((= Dupe 1)
+          (princ (strcat "\nSkipping duplicate layer: " cellValueLayer))
+          (setq i (1+ i))
+          (setq cellValueLayer (GetCell (strcat "A" (itoa i))))
+          (setq Dupe 0)
+        )
+        (t
+          (slayon cellValueLayer)
+          (slaycurr cellValueLayer)
+          (PlotBlock userInput cellValueLayer)
+          (slayoff cellValueLayer)
+          (setq i (1+ i))
+          (setq cellValueLayer (GetCell (strcat "A" (itoa i))))
+          (setq Dupe 0)
+        )
+      )
     )
   )
   
   (setvar "CMDECHO" 1)
-  
+  (CloseExcel)
 )
 ; loop through the layers
 ; find blocks
